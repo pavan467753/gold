@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gold Loan Manager</title>
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f4f6f8;
+        color: #222;
+    }
+    header {
+        background: #17212b;
+        color: white;
+        padding: 18px 28px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    header h1 { margin: 0; font-size: 24px; }
+    header span { color: #f5c542; font-weight: bold; }
+    .container {
+        max-width: 1200px;
+        margin: 25px auto;
+        padding: 0 18px;
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    .card {
+        background: white;
+        border-radius: 12px;
+        padding: 22px;
+        box-shadow: 0 3px 14px rgba(0,0,0,.08);
+    }
+    .card h2 {
+        margin-top: 0;
+        font-size: 19px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 12px;
+    }
+    label {
+        display: block;
+        margin-top: 13px;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    input, select {
+        width: 100%;
+        padding: 11px;
+        margin-top: 6px;
+        border: 1px solid #cfd5da;
+        border-radius: 7px;
+        font-size: 15px;
+    }
+    button {
+        border: 0;
+        border-radius: 7px;
+        padding: 11px 17px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 15px;
+    }
+    .primary { background: #f5c542; color: #111; }
+    .secondary { background: #17212b; color: white; }
+    .danger { background: #d9534f; color: white; }
+    .search {
+        margin-bottom: 15px;
+    }
+    .result {
+        background: #fafafa;
+        border: 1px solid #ddd;
+        border-radius: 9px;
+        padding: 16px;
+        margin-top: 12px;
+    }
+    .amount {
+        font-size: 22px;
+        font-weight: bold;
+        color: #087443;
+    }
+    .row {
+        display: flex;
+        justify-content: space-between;
+        padding: 7px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .row:last-child { border-bottom: 0; }
+    .customer-card {
+        border: 1px solid #ddd;
+        border-radius: 9px;
+        padding: 13px;
+        margin-top: 10px;
+        cursor: pointer;
+        background: white;
+    }
+    .customer-card:hover { background: #fff8dc; }
+    .muted { color: #666; font-size: 13px; }
+    .full { grid-column: 1 / -1; }
+    .empty { color: #777; text-align: center; padding: 25px; }
+    @media(max-width: 800px) {
+        .grid { grid-template-columns: 1fr; }
+        .full { grid-column: auto; }
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Gold Loan Manager</h1>
+    <span>Customer & Loan Records</span>
+</header>
+
+<div class="container">
+    <div class="grid">
+
+        <div class="card">
+            <h2>New Gold Loan</h2>
+
+            <label>Customer Name</label>
+            <input id="name" placeholder="Example: Suresh">
+
+            <label>Mobile Number</label>
+            <input id="mobile" placeholder="Example: 9876543210">
+
+            <label>Item Name</label>
+            <input id="item" placeholder="Example: Gold Chain">
+
+            <label>Gold Weight (grams)</label>
+            <input id="weight" type="number" step="0.001" placeholder="10">
+
+            <label>Purity</label>
+            <select id="purity">
+                <option value="22">22K</option>
+                <option value="24">24K</option>
+                <option value="20">20K</option>
+                <option value="18">18K</option>
+            </select>
+
+            <label>Principal Amount (₹)</label>
+            <input id="principal" type="number" step="0.01" placeholder="100000">
+
+            <label>Interest Rate (% per month)</label>
+            <input id="rate" type="number" step="0.01" value="2">
+
+            <label>Loan Date</label>
+            <input id="loanDate" type="date">
+
+            <label>Period (months)</label>
+            <input id="months" type="number" value="12" min="1">
+
+            <button class="primary" onclick="saveLoan()">Save Loan</button>
+            <button class="secondary" onclick="calculateOnly()">Calculate</button>
+        </div>
+
+        <div class="card">
+            <h2>Loan Calculation</h2>
+            <div id="calculation" class="empty">
+                Enter loan details and click Calculate.
+            </div>
+        </div>
+
+        <div class="card full">
+            <h2>Search Customer</h2>
+            <input class="search" id="search" placeholder="Search by customer name or mobile number" oninput="searchCustomers()">
+            <div id="customerList"></div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const STORAGE_KEY = "goldLoanCustomers";
+
+document.getElementById("loanDate").value =
+    new Date().toISOString().split("T")[0];
+
+function money(value) {
+    return Number(value || 0).toLocaleString("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 2
+    });
+}
+
+function getFormData() {
+    return {
+        id: Date.now(),
+        name: document.getElementById("name").value.trim(),
+        mobile: document.getElementById("mobile").value.trim(),
+        item: document.getElementById("item").value.trim(),
+        weight: Number(document.getElementById("weight").value),
+        purity: Number(document.getElementById("purity").value),
+        principal: Number(document.getElementById("principal").value),
+        rate: Number(document.getElementById("rate").value),
+        loanDate: document.getElementById("loanDate").value,
+        months: Number(document.getElementById("months").value)
+    };
+}
+
+function calculate(data) {
+    const interest = data.principal * data.rate / 100 * data.months;
+    const total = data.principal + interest;
+    return { interest, total };
+}
+
+function calculateOnly() {
+    const data = getFormData();
+
+    if (!data.principal || !data.months) {
+        alert("Please enter Principal Amount and Period.");
+        return;
+    }
+
+    const result = calculate(data);
+
+    document.getElementById("calculation").innerHTML = `
+        <div class="row"><b>Principal Amount</b><b>${money(data.principal)}</b></div>
+        <div class="row"><b>Interest Rate</b><span>${data.rate}% / month</span></div>
+        <div class="row"><b>Period</b><span>${data.months} months</span></div>
+        <div class="row"><b>Interest</b><b>${money(result.interest)}</b></div>
+        <div class="row"><b>Total Amount</b><span class="amount">${money(result.total)}</span></div>
+    `;
+}
+
+function saveLoan() {
+    const data = getFormData();
+
+    if (!data.name || !data.mobile || !data.item ||
+        !data.weight || !data.principal || !data.loanDate) {
+        alert("Please fill all important customer and loan details.");
+        return;
+    }
+
+    const result = calculate(data);
+    data.interest = result.interest;
+    data.total = result.total;
+
+    const customers = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    customers.push(data);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(customers));
+
+    showCustomer(data);
+    searchCustomers();
+
+    alert("Loan saved successfully!");
+}
+
+function showCustomer(data) {
+    const result = calculate(data);
+
+    document.getElementById("calculation").innerHTML = `
+        <div class="row"><b>Customer</b><span>${escapeHtml(data.name)}</span></div>
+        <div class="row"><b>Mobile</b><span>${escapeHtml(data.mobile)}</span></div>
+        <div class="row"><b>Item</b><span>${escapeHtml(data.item)}</span></div>
+        <div class="row"><b>Weight</b><span>${data.weight} g</span></div>
+        <div class="row"><b>Purity</b><span>${data.purity}K</span></div>
+        <div class="row"><b>Loan Date</b><span>${data.loanDate}</span></div>
+        <div class="row"><b>Principal Amount</b><b>${money(data.principal)}</b></div>
+        <div class="row"><b>Interest</b><b>${money(result.interest)}</b></div>
+        <div class="row"><b>Total Amount</b><span class="amount">${money(result.total)}</span></div>
+    `;
+}
+
+function searchCustomers() {
+    const query = document.getElementById("search").value.toLowerCase().trim();
+    const customers = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+
+    const matches = customers.filter(c =>
+        c.name.toLowerCase().includes(query) ||
+        c.mobile.includes(query)
+    );
+
+    const list = document.getElementById("customerList");
+
+    if (!matches.length) {
+        list.innerHTML = '<div class="empty">No customers found.</div>';
+        return;
+    }
+
+    list.innerHTML = matches.map(c => `
+        <div class="customer-card" onclick='showCustomer(${JSON.stringify(c)})'>
+            <b>${escapeHtml(c.name)}</b>
+            <div class="muted">${escapeHtml(c.mobile)} | ${escapeHtml(c.item)}</div>
+            <div>Principal: <b>${money(c.principal)}</b> &nbsp; Total: <b>${money(c.total)}</b></div>
+        </div>
+    `).join("");
+}
+
+function escapeHtml(text) {
+    return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+searchCustomers();
+</script>
+
+</body>
+</html>
